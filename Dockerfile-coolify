@@ -2,17 +2,18 @@ FROM node:20.18.0
 
 WORKDIR /app
 
-# Solución para el error EEXIST - Instalación limpia de pnpm
-RUN corepack enable && \
-    corepack prepare pnpm@8.15.7 --activate && \
-    npm install -g npm@latest && \
-    npm install -g wrangler --force
+# Instalar dependencias del sistema primero (si las hay)
+# RUN apt-get update && apt-get install -y ...
 
-# Copiar archivos de dependencias primero
+# Configurar Corepack y pnpm
+RUN corepack enable && \
+    corepack prepare pnpm@latest --activate
+
+# Copiar archivos de dependencias
 COPY package.json pnpm-lock.yaml ./
 
-# Instalación segura de dependencias
-RUN pnpm install --strict-peer-dependencies=false --frozen-lockfile
+# Instalar dependencias
+RUN pnpm install --frozen-lockfile
 
 # Copiar el resto del código
 COPY . .
@@ -23,6 +24,9 @@ RUN if [ -f bindings.sh ]; then \
       mv bindings.tmp bindings.sh && \
       chmod +x bindings.sh; \
     fi
+
+# Aumentar memoria para Node.js antes del build
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Build de producción
 RUN pnpm run build
