@@ -2,33 +2,34 @@ FROM node:20.18.0
 
 WORKDIR /app
 
-# Instalar pnpm e wrangler
-RUN corepack enable pnpm && \
-    npm install -g wrangler
+# Solución 1: Actualizar Corepack y forzar versión estable de pnpm
+RUN corepack enable && \
+    corepack prepare pnpm@8.15.7 --activate && \
+    npm install -g pnpm@8.15.7 wrangler
 
-# Copiar arquivos de dependências
+# Copiar archivos de dependencias primero (mejor práctica Docker)
 COPY package.json pnpm-lock.yaml ./
 
-# Instalar dependências
-RUN pnpm install
+# Solución 2: Instalación con parámetros que evitan el error
+RUN pnpm install --strict-peer-dependencies=false --frozen-lockfile
 
-# Copiar código  fonte e scripts
+# Copiar el resto del código
 COPY . .
 
-# Garantir que o bindings.sh tem permissões de execução e formato correto
-RUN tr -d '\r' < bindings.sh > bindings.tmp && \
-    mv bindings.tmp bindings.sh && \
-    chmod +x bindings.sh
+# Fix para bindings.sh (formato y permisos)
+RUN if [ -f bindings.sh ]; then \
+      tr -d '\r' < bindings.sh > bindings.tmp && \
+      mv bindings.tmp bindings.sh && \
+      chmod +x bindings.sh; \
+    fi
 
-# Build da aplicação
+# Build de producción
 RUN pnpm run build
 
-# Expor porta
+# Puerto y variables de entorno
 EXPOSE 5173
-
-# Configurar variáveis de ambiente
 ENV NODE_ENV=production \
     RUNNING_IN_DOCKER=true
 
-# Comando para iniciar usando o script dockerstart
+# Comando de inicio
 CMD ["pnpm", "run", "dockerstart"]
