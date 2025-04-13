@@ -2,21 +2,22 @@ FROM node:20.18.0
 
 WORKDIR /app
 
-# Solución 1: Actualizar Corepack y forzar versión estable de pnpm
+# Solución para el error EEXIST - Instalación limpia de pnpm
 RUN corepack enable && \
     corepack prepare pnpm@8.15.7 --activate && \
-    npm install -g pnpm@8.15.7 wrangler
+    npm install -g npm@latest && \
+    npm install -g wrangler --force
 
-# Copiar archivos de dependencias primero (mejor práctica Docker)
+# Copiar archivos de dependencias primero
 COPY package.json pnpm-lock.yaml ./
 
-# Solución 2: Instalación con parámetros que evitan el error
+# Instalación segura de dependencias
 RUN pnpm install --strict-peer-dependencies=false --frozen-lockfile
 
 # Copiar el resto del código
 COPY . .
 
-# Fix para bindings.sh (formato y permisos)
+# Fix para bindings.sh (si existe)
 RUN if [ -f bindings.sh ]; then \
       tr -d '\r' < bindings.sh > bindings.tmp && \
       mv bindings.tmp bindings.sh && \
