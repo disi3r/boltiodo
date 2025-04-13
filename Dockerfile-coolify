@@ -2,18 +2,16 @@ FROM node:20.18.0
 
 WORKDIR /app
 
-# Instalar dependencias del sistema primero (si las hay)
-# RUN apt-get update && apt-get install -y ...
+# Solución definitiva: Instalar pnpm sin usar corepack
+RUN npm install -g pnpm@8.15.7 && \
+    pnpm -v && \
+    npm install -g wrangler
 
-# Configurar Corepack y pnpm
-RUN corepack enable && \
-    corepack prepare pnpm@latest --activate
-
-# Copiar archivos de dependencias
+# Copiar archivos de dependencias primero
 COPY package.json pnpm-lock.yaml ./
 
-# Instalar dependencias
-RUN pnpm install --frozen-lockfile
+# Instalar dependencias con pnpm instalado globalmente
+RUN pnpm install --strict-peer-dependencies=false --frozen-lockfile
 
 # Copiar el resto del código
 COPY . .
