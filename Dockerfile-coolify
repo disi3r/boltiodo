@@ -1,38 +1,44 @@
 FROM node:20.18.0
 
+# Establecer directorio de trabajo
 WORKDIR /app
 
-# Solución definitiva: Instalar pnpm sin usar corepack
+# Instalar pnpm y dependencias globales
 RUN npm install -g pnpm@8.15.7 && \
-    pnpm -v && \
-    npm install -g wrangler
+    npm install -g wrangler && \
+    npm cache clean --force
 
-# Copiar archivos de dependencias primero
+# Copiar archivos de dependencias primero (mejor práctica Docker)
 COPY package.json pnpm-lock.yaml ./
 
-# Instalar dependencias con pnpm instalado globalmente
-RUN pnpm install --strict-peer-dependencies=false --frozen-lockfile
+# Instalar dependencias del proyecto
+RUN pnpm install --frozen-lockfile --strict-peer-dependencies=false
 
-# Copiar el resto del código
+# Copiar todo el código fuente
 COPY . .
 
-# Fix para bindings.sh (si existe)
+# Configurar variables de entorno de construcción
+ENV NODE_ENV=production \
+    NODE_OPTIONS="--max-old-space-size=8192" \
+    RUNNING_IN_DOCKER=true
+
+# Fix para archivos de bindings (si existen)
 RUN if [ -f bindings.sh ]; then \
       tr -d '\r' < bindings.sh > bindings.tmp && \
       mv bindings.tmp bindings.sh && \
       chmod +x bindings.sh; \
     fi
 
-# Aumentar memoria para Node.js antes del build
-ENV NODE_OPTIONS="--max-old-space-size=4096"
-
 # Build de producción
 RUN pnpm run build
 
-# Puerto y variables de entorno
+# Limpiar archivos innecesarios
+RUN rm -rf ./src ./public ./scripts ./.github && \
+    find . -type d -name "node_modules" -exec rm -rf {} + && \
+    find . -type f -name "*.md" -delete
+
+# Exponer puerto y configurar entorno
 EXPOSE 5173
-ENV NODE_ENV=production \
-    RUNNING_IN_DOCKER=true
 
 # Comando de inicio
 CMD ["pnpm", "run", "dockerstart"]
